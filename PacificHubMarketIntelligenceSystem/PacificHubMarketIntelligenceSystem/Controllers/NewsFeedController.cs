@@ -55,7 +55,11 @@ namespace PacificHubMarketIntelligenceSystem.Controllers
                 .ExecuteWithoutResultsAsync();
         }
 
-
+        [HttpGet]
+        public IHttpActionResult GetAll()
+        {
+            return Ok();
+        }
     }
 
     public class Keyword
