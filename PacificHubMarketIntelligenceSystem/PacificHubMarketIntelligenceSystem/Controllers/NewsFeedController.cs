@@ -8,6 +8,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
+using Neo4jClient.Cypher;
 
 namespace PacificHubMarketIntelligenceSystem.Controllers
 {
@@ -58,6 +59,16 @@ namespace PacificHubMarketIntelligenceSystem.Controllers
         [HttpGet]
         public IHttpActionResult GetAll()
         {
+            var url = ConfigurationManager.AppSettings["GraphDBUrl"];
+            var user = ConfigurationManager.AppSettings["GraphDBUser"];
+            var password = ConfigurationManager.AppSettings["GraphDBPassword"];
+            var client = new GraphClient(new Uri(url), user, password);
+            client.Connect();
+
+            var query = client.Cypher
+                .Start(all = All.Nodes)
+                .Return<object>()
+
             return Ok();
         }
     }
