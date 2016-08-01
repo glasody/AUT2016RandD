@@ -66,8 +66,8 @@ namespace PacificHubMarketIntelligenceSystem.Controllers
             client.Connect();
 
             var query = client.Cypher
-                .Start(all = All.Nodes)
-                .Return<object>()
+                .Start(new { all = All.Nodes})
+                .Return<object>("n");
 
             return Ok();
         }
