@@ -116,7 +116,16 @@
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
+    <Compile Include="Models.Old\Data.cs" />
+    <Compile Include="Models.Old\Graph.cs" />
+    <Compile Include="Models.Old\Meta.cs" />
     <Compile Include="Models\NewsFeed.cs" />
+    <Compile Include="Models.Old\Node.cs" />
+    <Compile Include="Models.Old\Relationship.cs" />
+    <Compile Include="Models.Old\Results.cs" />
+    <Compile Include="Models.Old\Stats.cs" />
+    <Compile Include="Models.Old\Type.cs" />
+    <Compile Include="Models\Tag.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
