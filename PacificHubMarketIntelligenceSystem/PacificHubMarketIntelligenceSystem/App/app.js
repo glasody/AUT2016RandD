@@ -47,9 +47,19 @@ AngularApp.controller('AngularParentController',
                 }
             }).then(function successCallback(response) {
                 $scope.subscriptionsList = response.data;
+                $scope.download(JSON.stringify($scope.subscriptionsList, null, "\t"), "output.txt", "application/json");
+                $scope.download(JSON.stringify($scope.subscriptionsList, null, "\t"), "output.json", "application/json");
             }, function errorCallback(response) {
 
             });
+        }
+
+        $scope.download = function(data, name, type) {
+            var a = document.createElement("a");
+            var file = new Blob([data], { type: type });
+            a.href = URL.createObjectURL(file);
+            a.download = name;
+            a.click();
         }
     }
 ]);

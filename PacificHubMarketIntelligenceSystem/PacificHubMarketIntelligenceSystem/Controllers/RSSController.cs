@@ -91,7 +91,7 @@ namespace PacificHubMarketIntelligenceSystem.Controllers
                 {
                     foreach (var f in feed.Items)
                     {
-                        if (f.PublishDate > sub.User.LastFetched)
+                        if (true) //f.PublishDate > sub.User.LastFetched
                         {
                             var tempFeed = new Feed
                             {
