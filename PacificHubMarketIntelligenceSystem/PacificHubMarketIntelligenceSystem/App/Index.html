@@ -26,18 +26,35 @@
         <link href="/App/css/site.css" rel="stylesheet"/>
     </head>
     <body>
-        <div id="container">
-            <form>
-                <div class="small-3 columns">
-                    <input type="text"/>
+        <div id="container" ng-controller="AngularParentController">
+            <form style="">
+                <div class="row">
+                    <div class="small-12 columns">
+                        <div class="row">
+                            <label>User
+                                <input type="text" ng-model="newSub.user" disabled required/>
+                            </label>
+                        </div>
+                        <div class="row">
+                            <label>RSS Title
+                                <input type="text" ng-model="newSub.title" required/>
+                            </label>
+                        </div>
+                        <div class="row">
+                            <label>RSS Url
+                                <input type="text" ng-model="newSub.uri" required/>
+                            </label>
+                        </div>
+                        <div class="row">
+                            <input class="button expanded" type="submit" value="Subscribe" ng-click="subscribe(newSub)"/>
+                        </div>
+                    </div>
                 </div>
-                <div class="small-3 columns">
-                    <input type="text" />
-                </div>
-                <input class="button" type="submit" value="Submit"/>
             </form>
+            <button class="button expanded" ng-click="fetch()">Fetch</button>
+            <pre>{{newSub | json}}</pre>
+            <pre style="overflow: scroll;">{{subscriptionsList | json}}</pre>
         </div>
-
         <script src="/App/js/what-input.js"></script>
         <script src="/App/app.js"></script>
     </body>

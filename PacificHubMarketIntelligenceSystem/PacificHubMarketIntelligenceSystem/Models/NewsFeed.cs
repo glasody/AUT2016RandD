@@ -11,6 +11,6 @@ namespace PacificHubMarketIntelligenceSystem.Models
         public string Url { get; set; }
         public string Description { get; set; }
         public string Author { get; set; }
-        public DateTime PubDate { get; set; }
+        public DateTimeOffset PubDate { get; set; }
     }
 }

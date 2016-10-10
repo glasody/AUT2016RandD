@@ -40,12 +40,15 @@ namespace PacificHubMarketIntelligenceSystem
             GraphClient = client;
 
             //Create Neo4j constraints
-            GraphClient.Cypher
-                .CreateUniqueConstraint("feed:NewsFeed", "feed.Url")
-                .ExecuteWithoutResults();
-            GraphClient.Cypher
-                .CreateUniqueConstraint("tag:Tag", "tag.Value")
-                .ExecuteWithoutResults();
+            //GraphClient.Cypher
+            //    .CreateUniqueConstraint("feed:NewsFeed", "feed.Url")
+            //    .ExecuteWithoutResults();
+            //GraphClient.Cypher
+            //    .CreateUniqueConstraint("tag:Tag", "tag.Value")
+            //    .ExecuteWithoutResults();
+            //GraphClient.Cypher
+            //    .CreateUniqueConstraint("user:User", "user.Name")
+            //    .ExecuteWithoutResults();
 
             //var appXmlType = config.Formatters.XmlFormatter.SupportedMediaTypes.FirstOrDefault(t => t.MediaType == "application/xml");
             //config.Formatters.XmlFormatter.SupportedMediaTypes.Remove(appXmlType);

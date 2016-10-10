@@ -19,7 +19,7 @@ namespace PacificHubMarketIntelligenceSystem.Controllers
     {
         [HttpPost]
         [Route("addFeed")]
-        public IHttpActionResult AddFeed(InputNewsFeed feed)
+        public async Task<IHttpActionResult> AddFeed(InputNewsFeed feed)
         {
             //http://stackoverflow.com/questions/19534511/how-to-create-a-node-with-neo4jclient-in-neo4j-v2
             //create newsfeed node
@@ -31,35 +31,37 @@ namespace PacificHubMarketIntelligenceSystem.Controllers
                 Author = feed.Author,
                 PubDate = feed.PubDate
             };
-
-            try
-            {
-                WebApiConfig.GraphClient.Cypher
-                    .Create("(newsfeed:NewsFeed {tempFeed})")
-                    .WithParams(new { tempFeed })
-                    .ExecuteWithoutResults();
-            }
-            catch (NeoException e)
-            {
-                //exeption here
-            }
+            
+            await WebApiConfig.GraphClient.Cypher
+                .Merge("(newsfeed:NewsFeed {Url: {u}})")
+                .OnCreate()
+                .Set("newsfeed = {t}")
+                .WithParams(new
+                {
+                    u = tempFeed.Url,
+                    t = tempFeed
+                })
+                .ExecuteWithoutResultsAsync();
 
             foreach (var tag in feed.Tags)
             {
-                try
-                {
-                    WebApiConfig.GraphClient.Cypher
-                        .Create("(t:Tag {Value : {tag}})")
-                        .WithParams(new { tag })
-                        .ExecuteWithoutResults();
-                }catch(NeoException e) { }
+                await WebApiConfig.GraphClient.Cypher
+                    .Merge("(t:Tag {Value : {v}})")
+                    .OnCreate()
+                    .Set("t = {newTag}")
+                    .WithParams(new
+                    {
+                        v = tag,
+                        newTag = new Tag { Value = tag}
+                    })
+                    .ExecuteWithoutResultsAsync();
 
-                WebApiConfig.GraphClient.Cypher
+                await WebApiConfig.GraphClient.Cypher
                     .Match("(n:NewsFeed)", "(t:Tag)")
                     .Where((NewsFeed n) => n.Url == feed.Url)
                     .AndWhere((Tag t) => t.Value == tag)
                     .CreateUnique("(n)-[:TAGGED_AS]->(t)")
-                    .ExecuteWithoutResults();
+                    .ExecuteWithoutResultsAsync();
             }
 
             ////http://stackoverflow.com/questions/34675334/is-there-a-way-to-add-multiple-nodes-with-the-net-neo4j-client
@@ -97,18 +99,19 @@ namespace PacificHubMarketIntelligenceSystem.Controllers
         //}
 
         [HttpGet]
-        public IHttpActionResult GetAll()
+        public async Task<IHttpActionResult> GetAll()
         {
-            var query = WebApiConfig.GraphClient.Cypher
+            var query = await WebApiConfig.GraphClient.Cypher
                 .Start(new {all = All.Nodes})
-                .Return<object>("all");
+                .Return<object>("all")
+                .ResultsAsync;
                 //.Return((news, keyword) => new
                 //{
                 //    NewsFeed = news.As<NewsFeed>(),
                 //    Keyword = keyword.As<Keyword>()
                 //});
 
-            return Ok(query.Results);
+            return Ok(query);
         }
     }
 
@@ -118,7 +121,7 @@ namespace PacificHubMarketIntelligenceSystem.Controllers
         public string Url { get; set; }
         public string Description { get; set; }
         public string Author { get; set; }
-        public DateTime PubDate { get; set; }
+        public DateTimeOffset PubDate { get; set; }
         public IEnumerable<string> Tags { get; set; }
     }
 }
