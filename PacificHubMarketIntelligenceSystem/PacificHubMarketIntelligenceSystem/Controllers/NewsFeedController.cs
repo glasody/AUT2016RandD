@@ -31,8 +31,8 @@ namespace PacificHubMarketIntelligenceSystem.Controllers
                 Author = feed.Author,
                 PubDate = feed.PubDate
             };
-            
-            await WebApiConfig.GraphClient.Cypher
+
+            var feedResult = await WebApiConfig.GraphClient.Cypher
                 .Merge("(newsfeed:NewsFeed {Url: {u}})")
                 .OnCreate()
                 .Set("newsfeed = {t}")
@@ -41,78 +41,82 @@ namespace PacificHubMarketIntelligenceSystem.Controllers
                     u = tempFeed.Url,
                     t = tempFeed
                 })
-                .ExecuteWithoutResultsAsync();
+                .Return<Node<NewsFeed>>("newsfeed")
+                .ResultsAsync;
 
-            foreach (var tag in feed.Tags)
+            NodeReference<NewsFeed> feedReference = feedResult.FirstOrDefault().Reference;
+
+            if (feed.Tags != null)
             {
-                await WebApiConfig.GraphClient.Cypher
-                    .Merge("(t:Tag {Value : {v}})")
-                    .OnCreate()
-                    .Set("t = {newTag}")
-                    .WithParams(new
-                    {
-                        v = tag,
-                        newTag = new Tag { Value = tag}
-                    })
-                    .ExecuteWithoutResultsAsync();
+                foreach (var tag in feed.Tags)
+                {
+                    var tagUpper = tag.ToUpper();
 
-                await WebApiConfig.GraphClient.Cypher
-                    .Match("(n:NewsFeed)", "(t:Tag)")
-                    .Where((NewsFeed n) => n.Url == feed.Url)
-                    .AndWhere((Tag t) => t.Value == tag)
-                    .CreateUnique("(n)-[:TAGGED_AS]->(t)")
-                    .ExecuteWithoutResultsAsync();
+                    var tagResult = await WebApiConfig.GraphClient.Cypher
+                        .Merge("(t:Tag {Value : {v}})")
+                        .OnCreate()
+                        .Set("t = {newTag}")
+                        .WithParams(new
+                        {
+                            v = tagUpper,
+                            newTag = new Tag { Value = tagUpper }
+                        })
+                        .Return<Node<Tag>>("t")
+                        .ResultsAsync;
+
+                    NodeReference<Tag> tagReference = tagResult.FirstOrDefault().Reference;
+
+                    WebApiConfig.GraphClient.CreateRelationship(feedReference, new TaggedAs(tagReference));
+
+                    //await WebApiConfig.GraphClient.Cypher
+                    //    .Match("(n:NewsFeed)", "(t:Tag)")
+                    //    .Where((NewsFeed n) => n.Url == feed.Url)
+                    //    .AndWhere((Tag t) => t.Value == tagUpper)
+                    //    .CreateUnique("(n)-[:TAGGED_AS]->(t)")
+                    //    .ExecuteWithoutResultsAsync();
+                }
             }
 
-            ////http://stackoverflow.com/questions/34675334/is-there-a-way-to-add-multiple-nodes-with-the-net-neo4j-client
-            ////create tag nodes
-            //if (feed.Tags.Any())
+            //
+            //http://geekswithblogs.net/cskardon/archive/2013/07/23/neo4jclient-ndash-getting-path-results.aspx
+            //NodeReference<NewsFeed> feedReference = WebApiConfig.GraphClient.Create(tempFeed);
+
+            //if (feed.Tags != null)
             //{
-            //    try
+            //    foreach (var tag in feed.Tags)
             //    {
-            //        WebApiConfig.GraphClient.Cypher
-            //            .Unwind(feed.Tags, "tag")
-            //            .Create("(t:Tag)")
-            //            .Set("t.Value = tag")
-            //            .ExecuteWithoutResults();
+            //        var tagUpper = tag.ToUpper();
+            //        NodeReference<Tag> tagReference = WebApiConfig.GraphClient.Create(new Tag() { Value = tagUpper });
+            //        WebApiConfig.GraphClient.CreateRelationship(feedReference, new TaggedAs(tagReference));
             //    }
-            //    catch(NeoException e) { }
-            //    //create relationships
             //}
 
             return Ok();
         }
 
-        //https://dzone.com/articles/neo4j-30-with-a-net-driver-neo4jclient
-        //private void CreateUniqueRelationship(int person1Id, int person2Id, string relType, bool twoWay, GraphClient client)
-        //{
-        //    var query = client.Cypher
-        //        .Match("(p1:Person)", "(p2:Person)")
-        //        .Where((Person p1) => p1.Id == person1Id)
-        //        .AndWhere((Person p2) => p2.Id == person2Id)
-        //        .CreateUnique("(p1)-[:" + relType + "]->(p2)");
-
-        //    if (twoWay)
-        //        query = query.CreateUnique("(p1)<-[:" + relType + "]-(p2)");
-        //
-        //    query.ExecuteWithoutResults();
-        //}
-
         [HttpGet]
-        public async Task<IHttpActionResult> GetAll()
+        [Route("keywords")]
+        public async Task<IHttpActionResult> GetKeyWords()
         {
             var query = await WebApiConfig.GraphClient.Cypher
-                .Start(new {all = All.Nodes})
-                .Return<object>("all")
+                .Match("(t:Tag)")
+                .Return(t => t.As<Tag>())
                 .ResultsAsync;
-                //.Return((news, keyword) => new
-                //{
-                //    NewsFeed = news.As<NewsFeed>(),
-                //    Keyword = keyword.As<Keyword>()
-                //});
-
-            return Ok(query);
+            return Ok(query.OrderBy(t => t.Value));
         }
+
+        //http://geekswithblogs.net/cskardon/archive/2013/07/23/neo4jclient-ndash-getting-path-results.aspx
+        //[HttpGet]
+        //[Route("queryKeyword")]
+        //public async Task<IHttpActionResult> QueryKeyword(string keyword)
+        //{
+        //    var tag = new Tag() {Value = keyword};
+        //    NodeReference<Tag> tagReference = WebApiConfig.GraphClient.Create(tag);
+
+        //    ICollection<PathsResult<Tag, TaggedAs>> paths = WebApiConfig.GraphClient.Paths<Tag, TaggedAs>(tagReference);
+
+        //    return Ok(paths);
+        //}
     }
 
     public class InputNewsFeed
@@ -124,4 +128,53 @@ namespace PacificHubMarketIntelligenceSystem.Controllers
         public DateTimeOffset PubDate { get; set; }
         public IEnumerable<string> Tags { get; set; }
     }
+
+    //http://geekswithblogs.net/cskardon/archive/2013/07/23/neo4jclient-ndash-getting-path-results.aspx
+    public class TaggedAs : Relationship,
+        IRelationshipAllowingSourceNode<NewsFeed>,
+        IRelationshipAllowingTargetNode<Tag>
+    {
+        public TaggedAs() : base(-1)
+        {
+        }
+
+        public TaggedAs(NodeReference targetNode) : base(targetNode)
+        {
+        }
+
+        public TaggedAs(NodeReference targetNode, object data) : base(targetNode, data)
+        {
+        }
+
+        public const string TypeKey = "TAGGED_AS";
+
+        public override string RelationshipTypeKey
+        {
+            get { return TypeKey; }
+        }
+    }
+
+    //public class PathsResult<TNode, TRelationship> where TRelationship : Relationship, new()
+    //{
+    //    public IEnumerable<Node<TNode>> Nodes { get; set; }
+    //    public IEnumerable<RelationshipInstance<TRelationship>> Relationships { get; set; }
+    //}
+
+    //public static class Neo4JClientExtensions
+    //{
+    //    public static ICollection<PathsResult<TNode, TRelationship>> Paths<TNode, TRelationship>(this IGraphClient client, NodeReference<TNode> rootNode, int levels = 1)
+    //        where TRelationship : Relationship, new()
+    //    {
+    //        ICypherFluentQuery<PathsResult<TNode, TRelationship>> pathsQuery = client.Cypher
+    //            .Start(new { n = rootNode })
+    //            .Match(string.Format("p=n-[:{0}*1..{1}]->()", new TRelationship().RelationshipTypeKey, levels))
+    //            .Return(p => new PathsResult<TNode, TRelationship>
+    //            {
+    //                Nodes = Return.As<IEnumerable<Node<TNode>>>("nodes(p)"),
+    //                Relationships = Return.As<IEnumerable<RelationshipInstance<TRelationship>>>("rels(p)")
+    //            });
+
+    //        return pathsQuery.Results.ToList();
+    //    }
+    //}
 }

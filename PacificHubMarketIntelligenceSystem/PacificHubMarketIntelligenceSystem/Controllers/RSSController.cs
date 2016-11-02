@@ -8,6 +8,7 @@ using System.Web.Http;
 using System.Xml;
 using System.ServiceModel.Syndication;
 using System.Threading.Tasks;
+using HtmlAgilityPack;
 using Neo4jClient;
 
 namespace PacificHubMarketIntelligenceSystem.Controllers
@@ -19,8 +20,8 @@ namespace PacificHubMarketIntelligenceSystem.Controllers
         [Route("subscribe")]
         public async Task<IHttpActionResult> Subscribe(NewSubscription sub)
         {
-            Subscription newSub = new Subscription {Title = sub.Title, Uri = sub.Uri};
-            User u = new User {Name = sub.User, LastFetched = new DateTimeOffset(1970,1,1,0,0,0,TimeSpan.Zero)};
+            Subscription newSub = new Subscription {Title = sub.Title, Uri = sub.Uri, LastFetched = new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero) };
+            User u = new User {Name = sub.User};
 
             //create User
             await WebApiConfig.GraphClient.Cypher
@@ -66,24 +67,26 @@ namespace PacificHubMarketIntelligenceSystem.Controllers
                 .Match("(u:User)", "(s:Subscription)")
                 .Where((User u) => u.Name == user)
                 .AndWhere("(u)-[:SUBSCRIBED_TO]->(s)")
-                .Return((u, s) => new
-                {
-                    User = u.As<User>(),
-                    Subscriptions = s.As<Subscription>()
-                }).ResultsAsync;
+                .Return(s => s.As<Subscription>())
+                .ResultsAsync;
+                //.Return((u, s) => new
+                //{
+                //    User = u.As<User>(),
+                //    Subscriptions = s.As<Subscription>()
+                //}).ResultsAsync;
 
             var subs = query;
-            //IList<SyndicationItem> feeds = new List<SyndicationItem>();
+
             //http://www.wadewegner.com/2011/11/aggregating-rss-feeds-in-c-and-asp-net-mvc-3/
             //https://blogs.msdn.microsoft.com/steveres/2008/01/20/using-syndicationfeed-to-display-photos-from-spaces-live-com/
             
             SyndicationFeed mainFeed = new SyndicationFeed();
-            List<Feed> Feeds = new List<Feed>();
+            List<Feed> feeds = new List<Feed>();
 
             foreach (var sub in subs)
             {
                 SyndicationFeed feed;
-                using (XmlReader r = XmlReader.Create(sub.Subscriptions.Uri))
+                using (XmlReader r = XmlReader.Create(sub.Uri))
                 {
                     feed = SyndicationFeed.Load(r);
                 }
@@ -91,18 +94,24 @@ namespace PacificHubMarketIntelligenceSystem.Controllers
                 {
                     foreach (var f in feed.Items)
                     {
-                        if (true) //f.PublishDate > sub.User.LastFetched
+                        if (f.PublishDate > sub.LastFetched)
                         {
                             var tempFeed = new Feed
                             {
-                                Author = f.Authors.FirstOrDefault().Email,
+                                Author = f.Authors.FirstOrDefault()?.Email ?? f.Authors.FirstOrDefault()?.Name,
                                 Description = f.Summary.Text,
                                 PubDate = f.PublishDate,
                                 Title = f.Title.Text,
-                                Url = f.Links.FirstOrDefault().Uri.AbsoluteUri,
-                                Categories = f.Categories.Select(category => category.Name).ToList()
+                                Url = f.Links.FirstOrDefault()?.Uri.AbsoluteUri,
+                                Categories = f.Categories.Select(category =>category.Name).ToList()
                             };
-                            Feeds.Add(tempFeed);
+
+                            if (f.Categories.Select(category => category.Name).ToList().Count < 1)
+                            {
+                                tempFeed.Categories = await GetKeywords(f.Links.FirstOrDefault()?.Uri.AbsoluteUri);
+                            }
+
+                            feeds.Add(tempFeed);
 
                             //TODO create a categoriser
 
@@ -117,23 +126,75 @@ namespace PacificHubMarketIntelligenceSystem.Controllers
                             });
                         }
                     }
-                    //SyndicationFeed tempFeed = new SyndicationFeed(
-                    //    mainFeed.Items.Union(feed.Items).OrderByDescending(i => i.PublishDate));
-                    //mainFeed = tempFeed;
                 }
+
+                var tempResult = await WebApiConfig.GraphClient.Cypher
+                    .Match("(s:Subscription)")
+                    .Where((Subscription s) => s.Uri == sub.Uri)
+                    .Set("s.LastFetched = {currentTime}")
+                    .WithParam("currentTime", DateTime.Now)
+                    .Return(s => s.As<Subscription>())
+                    .ResultsAsync;
             }
 
             //update last fetched
-            var tempUser = await WebApiConfig.GraphClient.Cypher
-                .Match("(u:User)")
-                .Where((User u) => u.Name == user)
-                .Set("u.LastFetched = {currentTime}")
-                .WithParam("currentTime", DateTime.Now)
-                .Return(u => u.As<User>())
-                .ResultsAsync;
+            //var tempUser = await WebApiConfig.GraphClient.Cypher
+            //    .Match("(u:User)")
+            //    .Where((User u) => u.Name == user)
+            //    .Set("u.LastFetched = {currentTime}")
+            //    .WithParam("currentTime", DateTime.Now)
+            //    .Return(u => u.As<User>())
+            //    .ResultsAsync;
+
             //http://stackoverflow.com/questions/10042849/how-to-sort-feed-by-category-if-im-using-syndication-in-windows-phone-7
             //var orderedFeeds = feeds.OrderByDescending(x => x.PublishDate);
-            return Ok(Feeds.OrderByDescending(i => i.PubDate));
+            return Ok(feeds.OrderByDescending(i => i.PubDate));
+        }
+
+        [HttpGet]
+        [Route("subscriptions")]
+        public async Task<IHttpActionResult> GetSubscriptions(string user)
+        {
+            var query = await WebApiConfig.GraphClient.Cypher
+                .Match("(u:User)", "(s:Subscription)")
+                .Where((User u) => u.Name == user)
+                .AndWhere("(u)-[:SUBSCRIBED_TO]->(s)")
+                .Return(s => s.As<Subscription>())
+                .ResultsAsync;
+            return Ok(query.ToList());
+        }
+
+        [HttpPost]
+        [Route("deleteSubscription")]
+        public async Task<IHttpActionResult> DeleteSubscription(string uri)
+        {
+            await WebApiConfig.GraphClient.Cypher
+                .OptionalMatch("(s:Subscription)<-[r]-()")
+                .Where((Subscription s) => s.Uri == uri)
+                .Delete("s,r")
+                .ExecuteWithoutResultsAsync();
+
+            return Ok();
+        }
+
+        //http://stackoverflow.com/questions/16738421/parse-html-meta-keywords-using-regex
+        private async Task<List<string>> GetKeywords(string url)
+        {
+            List<string> keywords = null;
+            using (WebClient client = new WebClient())
+            {
+                HtmlDocument doc = new HtmlDocument();
+                doc.LoadHtml(await client.DownloadStringTaskAsync(new Uri(url)));
+                HtmlNode node = doc.DocumentNode.SelectSingleNode("//meta[@name='keywords']");
+                if (node != null)
+                {
+                    keywords = doc.DocumentNode
+                        .SelectSingleNode("//meta[@name='keywords']")
+                        .Attributes["content"].Value
+                        .Split(',').ToList();
+                }
+            }
+            return keywords;
         }
     }
 
@@ -141,6 +202,7 @@ namespace PacificHubMarketIntelligenceSystem.Controllers
     {
         public string Title { get; set; }
         public string Uri { get; set; }
+        public DateTimeOffset LastFetched { get; set; }
     }
 
     public class Subscriptions
@@ -151,7 +213,6 @@ namespace PacificHubMarketIntelligenceSystem.Controllers
     public class User
     {
         public string Name { get; set; }
-        public DateTimeOffset LastFetched { get; set; }
     }
 
     public class NewSubscription

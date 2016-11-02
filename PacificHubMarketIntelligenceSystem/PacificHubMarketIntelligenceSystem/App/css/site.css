@@ -1,2 +1,25 @@
-﻿body {
+body {
+	height: 100%
+}
+
+#container {
+	height: 100%
+}
+#mySubs:nth-child(even) {
+    background-color: lightgrey;
+}
+
+#panel-feeds {
+    overflow-x: auto;
+}
+
+#feedItem {
+	font-size: 10px;
+	border-top:1px solid lightgrey;
+	border-bottom:1px solid lightgrey;
+}
+
+#feedItem:hover {
+    background-color: lightcyan;
+    cursor: pointer;
 }

@@ -6,56 +6,133 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Pacific Hub Market Intelligence System</title>
         <base href="/"/>
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.2/jquery.min.js"></script>
-        <!--AngularJS-->
-        <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular.min.js"></script>
-        <!--Augular Routing-->
-        <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular-route.min.js"></script>
-        <!--Angular Cookies-->
-        <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular-cookies.min.js"></script>
+		
+        <!--For production
+        <script src="/App/js/jquery/jquery.min.js"></script>
+        <script src="/App/js/alchemy/scripts/vendor.js"></script>
+        <script src="/App/js/angular/angular.min.js"></script>
+        <script src="/App/js/angular/angular-route.min.js"></script>
+        <script src="/App/js/angular/angular-cookies.min.js"></script>
+        <script src="/App/js/foundation/foundation.min.js"></script>
+        <script src="/App/js/alchemy/alchemy.min.js"></script>
+        <link href="/App/css/alchemy/styles/vendor.css" rel="stylesheet"/>
+        <link href="/App/css/alchemy/alchemy.min.css" rel="stylesheet"/>
+        <link href="/App/css/foundation/foundation.min.css" rel="stylesheet"/>
+        -->
 
-        <script src="https://cdn.jsdelivr.net/foundation/6.2.1/foundation.min.js"></script>
-        <!--For Offline development-->
-        <!--<script src="/App/js/angular.min.js"></script>
-        <script src="/App/js/angular-route.min.js"></script>
-        <script src="/App/js/angular-cookies.min.js"></script>
-        <script src="/App/js/foundation.min.js"></script>-->
-
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/foundation/6.2.1/foundation.min.css">
-        <!--<link href="/App/css/foundation.min.css" rel="stylesheet"/>-->
+        <!--for development-->
+        <script src="/App/js/jquery/jquery.js"></script>
+        <script src="/App/js/alchemy/scripts/vendor.js"></script>
+        <script src="/App/js/angular/angular.js"></script>
+        <script src="/App/js/angular/angular-route.js"></script>
+        <script src="/App/js/angular/angular-cookies.js"></script>
+        <script src="/App/js/foundation/foundation.js"></script>
+        <script src="/App/js/alchemy/alchemy.js"></script>
+        <link href="/App/css/alchemy/styles/vendor.css" rel="stylesheet"/>
+        <link href="/App/css/alchemy/alchemy.css" rel="stylesheet"/>
+        <link href="/App/css/foundation/foundation.css" rel="stylesheet"/>
+		
         <link href="/App/css/site.css" rel="stylesheet"/>
     </head>
-    <body>
-        <div id="container" ng-controller="AngularParentController">
-            <form style="">
-                <div class="row">
-                    <div class="small-12 columns">
-                        <div class="row">
-                            <label>User
-                                <input type="text" ng-model="newSub.user" disabled required/>
-                            </label>
+    <body ng-controller="AngularParentController">
+        <div id="container">
+            <div class="row medium-12" style="height: 100%;">
+                <div class="columns small-3">
+                    <div class="row sticky">
+                        <ul class="tabs" data-tabs id="news-panel-tabs">
+                            <li class="tabs-title">
+                                <a href="#panel-subscribe" aria-selected="true">Subscribe</a>
+                            </li>
+                            <li class="tabs-title is-active">
+                                <a href="#panel-feeds">Feeds</a>
+                            </li>
+                            <li class="tabs-title">
+                                <a href="#panel-query">Query</a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="tabs-content row float-center" data-tabs-content="news-panel-tabs" style="height: 100%;" id="tab-panel-container">
+                        <div class="tabs-panel columns small-12" id="panel-subscribe" style="margin-top: 54px;">
+                            <form class="row" name="subscribeForm">
+                                <div class="small-12 columns">
+                                    <div>
+                                        <label>User
+                                            <input disabled="" required="" type="text" ng-model="newSub.user">
+                                        </label>
+                                    </div>
+                                    <div>
+                                        <label>RSS Title
+                                            <input required type="text" ng-model="newSub.title">
+                                        </label>
+                                    </div>
+                                    <div>
+                                        <label>RSS Url
+                                            <input required type="text" ng-model="newSub.uri">
+                                        </label>
+                                    </div>
+                                    <div>
+                                        <input class="button expanded" type="submit" value="Subscribe" ng-click="subscribe(newSub)" ng-disabled="subscribeForm.$invalid">
+                                    </div>
+                                </div>
+                            </form>
+                            <div ng-init="getSubscriptions(newSub.user)">
+                                <label for="mySubs"><strong>Current Subscriptions</strong></label>
+                                <div class="row" id="mySubs" ng-repeat="sub in subscriptionList">
+                                    <div class="columns small-8 align-self-middle" ng-bind="sub.title"></div>
+                                    <button type="button" class="alert button columns small-4" style="margin: 5px 0 5px 0;" ng-click="deleteSubscription(sub.uri)">Delete</button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="row">
-                            <label>RSS Title
-                                <input type="text" ng-model="newSub.title" required/>
-                            </label>
+                        <div class="tabs-panel is-active columns small-12" id="panel-feeds" style="margin-top: 54px;">
+                            <button type="button" class="button expanded" ng-click="fetch()">
+                                Fetch new Feeds
+                            </button>
+                            <div class="row" ng-repeat="feed in feedList" ng-click="getArticle(feed.url)">
+                                <div id="feedItem" class="columns small-12">
+                                    <div class="row"><Strong ng-bind="feed.title"></Strong>
+                                    </div>
+                                    <div class="row" ng-bind="feed.description"></div>
+                                    <div class="text-right" style="color: lightgrey;" ng-bind="feed.pubDate"></div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="row">
-                            <label>RSS Url
-                                <input type="text" ng-model="newSub.uri" required/>
-                            </label>
-                        </div>
-                        <div class="row">
-                            <input class="button expanded" type="submit" value="Subscribe" ng-click="subscribe(newSub)"/>
+                        <div id="panel-query" class="tabs-panel columns small-12" style="margin-top: 54px;">
+                        	<form name="queryForm" ng-init="getKeywords()">
+								<label for="keywordSelect"> Keywords </label>
+								<select name="keywordSelect" id="keywordSelect" ng-model="keywordSelected" ng-options="keyword.value for keyword in keywords" required>
+								</select>
+	                            <button class="button expanded" ng-click="query(keywordSelected)" ng-disabled="queryForm.$invalid">Query</button>
+	                            <pre>{{keywordSelected}}</pre>
+							</form>
                         </div>
                     </div>
                 </div>
-            </form>
-            <button class="button expanded" ng-click="fetch()">Fetch</button>
-            <pre>{{newSub | json}}</pre>
-            <pre style="overflow: scroll;">{{subscriptionsList | json}}</pre>
+                <div class="columns small-9">
+                    <div id="alchemy" class="alchemy row">
+						
+                    </div>
+
+                </div>
+		  	</div>
         </div>
-        <script src="/App/js/what-input.js"></script>
-        <script src="/App/app.js"></script>
+
+        <script src="/App/js/foundation/what-input.js"></script>
+        <script src="/App/js/app.js"></script>
     </body>
 </html>
+<!--example subs
+http://pacific.scoop.co.nz/feed
+http://www.radionz.co.nz/rss/pacific.xml
+http://asiapacificreport.nz/feed
+http://rss.nzherald.co.nz/rss/xml/nzhrsslocid_000000010.xml
+http://www.stuff.co.nz/rss
+    
+tech example
+http://rss.nzherald.co.nz/rss/xml/nzhrsscid_000000005.xml
+https://www.theguardian.com/uk/technology/rss
+https://www.engadget.com/rss.xml
+
+examp queries
+    MATCH (n:NewsFeed),(t:Tag) MATCH (n)-[:TAGGED_AS]->(t) WHERE t.Value = 'POLITICS'  RETURN n,t
+    -->
+
